@@ -1,0 +1,57 @@
+default:
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+      variables:
+        HEALTHCHECK_TCP_PORT: "2376"
+  before_script:
+    - docker info
+
+stages:
+  - login
+  - deploy
+
+variables:
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_TLS_VERIFY: 1
+  DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  DOCKER_IMAGE: swr.ap-southeast-1.myhuaweicloud.com/stage-raas/infra-backend-ci
+
+login_to_swr:
+  stage: login
+  tags:
+    - k8s
+  before_script:
+    - docker info
+    - COMMIT_ID="$CI_COMMIT_SHORT_SHA"
+    - DATE=$(echo "$CI_COMMIT_TIMESTAMP" | cut -d'T' -f1 | sed 's/-//g')  # YYYYMMDD
+    - TAG="$COMMIT_ID-$DATE"
+    - echo "$TAG" > image_tag.txt  # Save tag to file
+    - echo "Tag to be used $TAG"
+  script:
+    - echo "Logging in to Huawei SWR..."
+    - docker login -u "ap-southeast-1@HPUAAEJHKB5SNPJUSWZP" -p "c2f253479e3d92a228dd5b361ca6602271a4707d6f8b741222b95f9c68b3fe02" swr.ap-southeast-1.myhuaweicloud.com
+    - docker build -t "$DOCKER_IMAGE:$TAG" .
+    - docker push "$DOCKER_IMAGE:$TAG"
+  artifacts:
+    paths:
+      - image_tag.txt
+
+deploy_to_k8s:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: ['']
+  tags:
+    - k8s
+  dependencies:
+    - login_to_swr  # Get artifacts from previous job
+  before_script: []
+  script:
+    - TAG=$(cat image_tag.txt)  # Read tag from file
+    - echo "Deploying image with tag $TAG"
+    - kubectl get pods -n gitlab-runner
+    # - kubectl set image deployment/your-deployment-name \
+    #     your-container-name="$DOCKER_IMAGE:$TAG" \
+    #     -n your-namespace
