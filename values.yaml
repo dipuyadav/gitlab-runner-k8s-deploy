@@ -1,0 +1,95 @@
+gitlabUrl: https://git.antiersolutions.com/
+runnerRegistrationToken: GR1348941LJnmxA6WjUy28_o6iXHq
+
+#rbac:
+#  create: true
+#  rules:
+#    - apiGroups: [""]
+#      resources: ["pods", "deployments", "services"]
+#      verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources:
+        - events
+      verbs:
+        - list
+        - watch
+    - apiGroups: [""]
+      resources:
+        - namespaces
+      verbs:
+        - create
+        - delete
+    - apiGroups: [""]
+      resources:
+        - pods
+        - pods/log
+        - pods/attach
+        - pods/exec
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - watch
+        - patch
+    - apiGroups: [""]
+      resources:
+        - secrets
+        - configmaps
+      verbs:
+        - get
+        - list
+        - create
+        - update
+        - delete
+    - apiGroups: [""]
+      resources:
+        - serviceaccounts
+      verbs:
+        - get
+    - apiGroups: [""]
+      resources:
+        - services
+      verbs:
+        - create
+        - get
+    - apiGroups: ["apps"]
+      resources:
+        - deployments
+      verbs:
+        - get
+        - list
+        - update
+        - patch
+    - apiGroups: ["apps"]
+      resources: ["deployments"]
+      verbs:
+        - get
+        - list
+        - watch
+        - create
+        - update
+        - patch
+        - delete
+
+
+serviceAccount:
+  create: true
+  name: gitlab-runner  # ensure job pods use this SA
+runners:
+  tags: "k8s,huawei"
+  config: |
+    [[runners]]
+      [runners.kubernetes]
+        service_account = "gitlab-runner"
+        service_account_overwrite_allowed = "gitlab-runner"
+        image = "ubuntu:20.04"
+        privileged = true
+      [[runners.kubernetes.volumes.empty_dir]]
+        name = "docker-certs"
+        mount_path = "/certs/client"
+        medium = "Memory"
